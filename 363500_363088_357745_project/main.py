@@ -7,6 +7,7 @@ from src.data import load_data
 from src.methods.pca import PCA
 from src.methods.deep_network import MLP, CNN, Trainer, MyViT
 from src.utils import normalize_fn, append_bias_term, accuracy_fn, macrof1_fn, get_n_classes
+import os
 
 
 def main(args):
@@ -49,8 +50,12 @@ def main(args):
     # Note: you might need to reshape the data depending on the network you use!
     n_classes = get_n_classes(ytrain)
     if args.nn_type == "mlp":
-        model = ... ### WRITE YOUR CODE HERE
+        model = MLP(input_size= 784 ,n_classes= 10) ### WRITE YOUR CODE HERE
+       
+    if args.nn_type == "cnn" :
+        model = CNN
 
+    
     summary(model)
 
     # Trainer object
@@ -88,7 +93,8 @@ if __name__ == '__main__':
     # Feel free to add more arguments here if you need!
 
     # MS2 arguments
-    parser.add_argument('--data', default="dataset", type=str, help="path to your dataset")
+    parser.add_argument('--data_path', default="", type=str, help="path to your dataset")
+    # print(parser.parse_args);
     parser.add_argument('--nn_type', default="mlp",
                         help="which network architecture to use, it can be 'mlp' | 'transformer' | 'cnn'")
     parser.add_argument('--nn_batch_size', type=int, default=64, help="batch size for NN training")
@@ -99,7 +105,7 @@ if __name__ == '__main__':
 
 
     parser.add_argument('--lr', type=float, default=1e-5, help="learning rate for methods with learning rate")
-    parser.add_argument('--max_iters', type=int, default=100, help="max iters for methods which are iterative")
+    parser.add_argument('--max_iters', type=int, default=20, help="max iters for methods which are iterative")
     parser.add_argument('--test', action="store_true",
                         help="train on whole training data and evaluate on the test data, otherwise use a validation set")
 

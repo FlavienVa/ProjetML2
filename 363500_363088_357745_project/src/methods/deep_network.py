@@ -13,7 +13,7 @@ class MLP(nn.Module):
     It should not use any convolutional layers.
     """
 
-    def __init__(self, input_size, n_classes):
+    def __init__(self, input_size, n_classes, layer1 = 512, layer2 = 280, layer3 = 120):
         """
         Initialize the network.
         
@@ -24,13 +24,14 @@ class MLP(nn.Module):
             input_size (int): size of the input
             n_classes (int): number of classes to predict
         """
-        super().__init__()
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        super(MLP, self).__init__()
 
+        self.lin1 = nn.Linear(input_size, layer1);
+        self.lin2 = nn.Linear(layer1, layer2);
+        self.lin3 = nn.Linear(layer2, layer3);
+        self.lin4 = nn.Linear(layer3, n_classes);
+
+        
     def forward(self, x):
         """
         Predict the class of a batch of samples with the model.
@@ -46,6 +47,16 @@ class MLP(nn.Module):
         #### WRITE YOUR CODE HERE!
         ###
         ##
+
+        ##preds = x.flatten(- x.ndim + 1)
+        ##preds = x.reshape((x.shape[0], -1))
+        preds = x.view(x.size(0), -1)
+
+        preds = F.sigmoid(self.lin1(preds))
+        preds = F.sigmoid(self.lin2(preds))
+        preds = F.sigmoid(self.lin3(preds))
+        preds = self.lin4(preds)
+
         return preds
 
 
@@ -150,7 +161,7 @@ class Trainer(object):
         self.batch_size = batch_size
 
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = ...  ### WRITE YOUR CODE HERE
+        self.optimizer = torch.optim.SGD(params= model.parameters(), lr= lr)  ### WRITE YOUR CODE HERE
 
     def train_all(self, dataloader):
         """
@@ -163,7 +174,7 @@ class Trainer(object):
             dataloader (DataLoader): dataloader for training data
         """
         for ep in range(self.epochs):
-            self.train_one_epoch(dataloader)
+            self.train_one_epoch(dataloader,ep= ep)
 
             ### WRITE YOUR CODE HERE if you want to do add something else at each epoch
 
@@ -182,6 +193,26 @@ class Trainer(object):
         #### WRITE YOUR CODE HERE!
         ###
         ##
+        self.model.train()
+        for it, batch in enumerate(dataloader) :
+            x, y = batch
+
+            # Ensure y is of type torch.int64
+            y = y.long()
+
+            logits = self.model.forward(x)
+
+            loss = self.criterion(logits, y)
+
+            loss.backward()
+
+            self.optimizer.step()
+
+            self.optimizer.zero_grad()
+
+            print('\rEp {}/{}, it {}/{}: loss train: {:.2f}'.
+                  format(ep + 1, self.epochs + 1,it , len(dataloader), loss,
+                          end=''))
 
     def predict_torch(self, dataloader):
         """
@@ -205,6 +236,17 @@ class Trainer(object):
         #### WRITE YOUR CODE HERE!
         ###
         ##
+        self.model.eval()
+        with torch.no_grad() :
+            pred_labels = []
+            for it, batch in enumerate(dataloader):
+                # Get batch of data.
+                x = batch  
+                print(x)
+                logits = self.model.forward(batch)  # Perform the forward pass
+                preds = torch.argmax(logits, dim=1)  # Get the predicted class labels
+                pred_labels.append(preds)
+        
         return pred_labels
     
     def fit(self, training_data, training_labels):
