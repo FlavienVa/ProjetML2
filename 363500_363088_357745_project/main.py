@@ -40,6 +40,8 @@ def main(args):
         print("Using PCA")
         pca_obj = PCA(d=args.pca_d)
         ### WRITE YOUR CODE HERE: use the PCA object to reduce the dimensionality of the data
+        xtrain = pca_obj.reduce_dimension(xtrain)
+        xtest = pca_obj.reduce_dimension(xtest)
 
 
     ## 3. Initialize the method you want to use.
@@ -50,9 +52,11 @@ def main(args):
     # Note: you might need to reshape the data depending on the network you use!
     n_classes = get_n_classes(ytrain)
     if args.nn_type == "mlp":
+
         model = MLP(input_size= 784 ,n_classes= 10) ### WRITE YOUR CODE HERE
        
     if args.nn_type == "cnn" :
+        
         model = CNN
 
     

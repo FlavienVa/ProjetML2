@@ -47,14 +47,16 @@ class MLP(nn.Module):
         #### WRITE YOUR CODE HERE!
         ###
         ##
-
-        ##preds = x.flatten(- x.ndim + 1)
+            
+        #preds = x.flatten(- x.ndim + 1)
         ##preds = x.reshape((x.shape[0], -1))
-        preds = x.view(x.size(0), -1)
+        #preds = x.view(x.size(0), -1)
 
-        preds = F.sigmoid(self.lin1(preds))
+
+
+        preds = F.relu(self.lin1(x))
         preds = F.sigmoid(self.lin2(preds))
-        preds = F.sigmoid(self.lin3(preds))
+        preds = F.relu(self.lin3(preds))
         preds = self.lin4(preds)
 
         return preds
@@ -78,7 +80,12 @@ class CNN(nn.Module):
             input_channels (int): number of channels in the input
             n_classes (int): number of classes to predict
         """
-        super().__init__()
+        super(CNN, self).__init__()
+        self.conv2d1 = nn.Conv2d(input_channels, 3, 3, stride=1, padding=1)
+        self.conv2d2 == nn.Conv2d(3, 12, 3, stride=1, padding=1)
+        self.conv2d3 == nn.Conv2d(12, 24, 3, stride=1, padding=1)
+        self.fc1 == nn.Linear
+
         ##
         ###
         #### WRITE YOUR CODE HERE!
@@ -237,15 +244,15 @@ class Trainer(object):
         ###
         ##
         self.model.eval()
-        with torch.no_grad() :
-            pred_labels = []
+        with torch.no_grad():
             for it, batch in enumerate(dataloader):
-                # Get batch of data.
-                x = batch  
-                print(x)
-                logits = self.model.forward(batch)  # Perform the forward pass
-                preds = torch.argmax(logits, dim=1)  # Get the predicted class labels
-                pred_labels.append(preds)
+                x = batch[0] ## It is a list of ONE element
+                logits = self.model.forward(x)
+
+                if it == 0:
+                    pred_labels = torch.argmax(logits, dim=1)
+                else:
+                    pred_labels = torch.cat((pred_labels, torch.argmax(logits, dim=1)))
         
         return pred_labels
     
