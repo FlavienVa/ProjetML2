@@ -111,6 +111,31 @@ class CNN(nn.Module):
 
 
 class MyViT(nn.Module):
+    def get_positional_embeddings(sequence_length, d):
+        def f(i,d,index):
+            return i/(10000**((index - (index % 2))/d))
+        result = torch.ones(sequence_length, d)
+        for i in range(sequence_length):
+            indices = torch.arange(d, dtype=torch.float32)  
+            even_mask = indices % 2 == 0
+            odd_mask = ~even_mask 
+            result[i][even_mask] = torch.sin(f(i,d,indices[even_mask]))
+            result[i][odd_mask] = torch.cos(f(i,d,indices[odd_mask]))
+        return result
+    def patchify(images, n_patches):
+        n, c, h, w = images.shape
+
+        assert h == w 
+
+        patches = torch.zeros(n, n_patches ** 2, h * w * c // n_patches ** 2)
+        patch_size = h // n_patches
+
+        for idx, image in enumerate(images):
+            for i in range(n_patches):
+                for j in range(n_patches):
+                    patch = image[:, i * patch_size: (i + 1) * patch_size, j * patch_size: (j + 1) * patch_size] 
+                    patches[idx, i * n_patches + j] = patch.flatten() 
+        return patches
     """
     A Transformer-based neural network
     """
@@ -121,11 +146,29 @@ class MyViT(nn.Module):
         
         """
         super().__init__()
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        self.chw = chw 
+        self.n_patches = n_patches
+        self.n_blocks = n_blocks
+        self.n_heads = n_heads
+        self.hidden_d = hidden_d
+
+        assert chw[1] % n_patches == 0 
+        assert chw[2] % n_patches == 0
+        self.patch_size =  (chw[1]/n_patches, chw[2]/n_patches)
+
+        self.input_d = int(chw[0] * self.patch_size[0] * self.patch_size[1])
+        self.linear_mapper = nn.Linear(self.input_d, self.hidden_d)
+
+        self.class_token = nn.Parameter(torch.rand(1, self.hidden_d))
+
+        self.positional_embeddings = MyViT.get_positional_embeddings(n_patches ** 2 + 1, self.hidden_d)### WRITE YOUR CODE HERE
+
+        self.blocks = nn.ModuleList([MyViT.MyViTBlock(hidden_d, n_heads) for _ in range(n_blocks)])
+
+        self.mlp = nn.Sequential(
+            nn.Linear(self.hidden_d, out_d),
+            nn.Softmax(dim=-1)
+        )
 
     def forward(self, x):
         """
@@ -137,14 +180,82 @@ class MyViT(nn.Module):
             preds (tensor): logits of predictions of shape (N, C)
                 Reminder: logits are value pre-softmax.
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
-        return preds
+        n, _, _, _ = x.shape
 
+        patches = MyViT.patchify(x,self.n_patches)### WRITE YOUR CODE HERE
 
+        tokens = self.linear_mapper(patches)
+
+        tokens = torch.cat((self.class_token.expand(n, 1, -1), tokens), dim=1)
+
+        pos_embedding = self.positional_embeddings.repeat(n, 1 ,1)
+        out = tokens + pos_embedding
+
+        for block in self.blocks:
+            out = block(out)
+
+        out = out[:, 0]
+
+        out = self.mlp(out)
+
+        return out
+    
+
+    ## Multi-head self attention
+    class MyMSA(nn.Module):
+        def __init__(self, d, n_heads):
+            super(MyViT.MyMSA, self).__init__()
+            self.d = d
+            self.n_heads = n_heads
+
+            assert d % n_heads == 0, f"Can't divide dimension {d} into {n_heads} heads"
+
+            d_head = int(d / n_heads)
+            self.d_head = d_head
+
+            self.q_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
+            self.k_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
+            self.v_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
+            self.softmax = nn.Softmax(dim=-1)
+
+        def forward(self, sequences):
+            result = []
+            for sequence in sequences:
+                seq_result = []
+                for head in range(self.n_heads):
+
+                    q_mapping = self.q_mappings[head]
+                    k_mapping = self.k_mappings[head]
+                    v_mapping = self.v_mappings[head]
+
+                    seq = sequence[:, head * self.d_head: (head + 1) * self.d_head]
+
+                    q, k, v = q_mapping(seq), k_mapping(seq), v_mapping(seq)
+
+                    attention_scores = torch.matmul(q, k.transpose(-2, -1)) / (self.d_head ** 0.5)
+                    attention = self.softmax(attention_scores)
+                    seq_result.append(attention @ v)
+                result.append(torch.hstack(seq_result))
+            return torch.cat([torch.unsqueeze(r, dim=0) for r in result])
+    class MyViTBlock(nn.Module):
+        def __init__(self, hidden_d, n_heads, mlp_ratio=4):
+            super(MyViT.MyViTBlock, self).__init__()
+            self.hidden_d = hidden_d
+            self.n_heads = n_heads
+
+            self.norm1 = nn.LayerNorm(hidden_d)
+            self.mhsa = MyViT.MyMSA(hidden_d, n_heads) 
+            self.norm2 = nn.LayerNorm(hidden_d)
+            self.mlp = nn.Sequential( 
+                nn.Linear(hidden_d, mlp_ratio * hidden_d),
+                nn.GELU(),
+                nn.Linear(mlp_ratio * hidden_d, hidden_d)
+            )
+
+        def forward(self, x):
+            out = self.mhsa(self.norm1(x)) + x
+            out = self.mlp(self.norm2(out)) + out
+            return out
 class Trainer(object):
     """
     Trainer class for the deep networks.
