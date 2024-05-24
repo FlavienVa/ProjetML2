@@ -75,7 +75,11 @@ def main(args):
     if args.nn_type == "cnn" :
         xtrain = xtrain.reshape(-1, 1, 28, 28)
 
-        model = CNN(device=device)
+        xtrain = xtrain.reshape(-1, 1, 28, 28)
+        xtest = xtest.reshape(-1, 1, 28, 28)
+        xvalid = xvalid.reshape(-1, 1, 28, 28)
+
+        model = CNN(input_channels=1 , n_classes=10)
 
     if args.nn_type == "transformer":
         xtrain = xtrain.reshape(-1, 1, 28, 28)

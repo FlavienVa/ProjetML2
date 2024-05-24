@@ -83,15 +83,10 @@ class CNN(nn.Module):
         """
         super(CNN, self).__init__()
         self.conv2d1 = nn.Conv2d(input_channels, 3, 3, stride=1, padding=1)
-        self.conv2d2 = nn.Conv2d(3, 12, 3, stride=1, padding=1)
-        self.conv2d3 = nn.Conv2d(12, 24, 3, stride=1, padding=1)
-        self.fc1 = nn.Linear
+        self.conv2d2 = nn.Conv2d(3,  12,  3, stride = 1, padding = 1)
+        self.fc1 = nn.Linear(12*7*7, 120)
+        self.fc2 = nn.Linear(120, n_classes)
         self.device = device
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
 
     def forward(self, x):
         """
@@ -103,12 +98,11 @@ class CNN(nn.Module):
             preds (tensor): logits of predictions of shape (N, C)
                 Reminder: logits are value pre-softmax.
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
-        return preds
+        x = F.max_pool2d(F.relu(self.conv2d1(x)), 2)
+        x = F.max_pool2d(F.relu(self.conv2d2(x)), 2)
+        x = x.reshape((x.shape[0], -1))
+        x = F.relu(self.fc1(x))
+        return self.fc2(x)
 
 
 class MyViT(nn.Module):
