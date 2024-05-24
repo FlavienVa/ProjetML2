@@ -21,8 +21,8 @@ def main(args):
     """
     ## 1. First, we load our data and flatten the images into vectors
     xtrain, xtest, ytrain = load_data(args.data_path)
-    xtrain = xtrain.reshape(xtrain.shape[0], -1)
-    xtest = xtest.reshape(xtest.shape[0], -1)
+    #xtrain = xtrain.reshape(xtrain.shape[0], -1)
+    #xtest = xtest.reshape(xtest.shape[0], -1)
 
     ## 2. Then we must prepare it. This is were you can create a validation set,
     #  normalize, add bias, etc.
@@ -57,7 +57,10 @@ def main(args):
        
     if args.nn_type == "cnn" :
         
-        model = CNN
+        xtrain = xtrain.reshape(-1, 1, 28, 28)
+        xtest = xtest.reshape(-1, 1, 28, 28)
+
+        model = CNN(input_channels=1 , n_classes=10)
 
     
     summary(model)
