@@ -87,12 +87,6 @@ class CNN(nn.Module):
         self.fc2 = nn.Linear(120, n_classes)
 
 
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
-
     def forward(self, x):
         """
         Predict the class of a batch of samples with the model.
@@ -103,11 +97,6 @@ class CNN(nn.Module):
             preds (tensor): logits of predictions of shape (N, C)
                 Reminder: logits are value pre-softmax.
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
         x = F.max_pool2d(F.relu(self.conv2d1(x)), 2)
         x = F.max_pool2d(F.relu(self.conv2d2(x)), 2)
         x = x.reshape((x.shape[0], -1))
