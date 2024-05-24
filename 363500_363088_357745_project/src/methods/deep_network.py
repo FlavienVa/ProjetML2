@@ -165,10 +165,7 @@ class MyViT(nn.Module):
 
         self.blocks = nn.ModuleList([MyViT.MyViTBlock(hidden_d, n_heads) for _ in range(n_blocks)])
 
-        self.mlp = nn.Sequential(
-            nn.Linear(self.hidden_d, out_d),
-            nn.Softmax(dim=-1)
-        )
+        self.mlp = MLP(input_size=out_d)
 
     def forward(self, x):
         """
