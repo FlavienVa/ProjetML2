@@ -2,6 +2,7 @@ import argparse
 
 import numpy as np
 from torchinfo import summary
+import torch
 
 from src.data import load_data
 from src.methods.pca import PCA
@@ -38,6 +39,17 @@ def main(args):
     ### WRITE YOUR CODE HERE
         #print("Using PCA")
 
+    if (torch.cuda.is_available()):
+        print("Device use: CUDA")
+        device = torch.device('cuda')
+    elif (torch.backends.mps.is_available() and torch.backends.mps.is_built()):
+        print("Device use: MPS")
+        print(f"Total Memory driver allocated: {torch.mps.driver_allocated_memory()}")
+        print(f"Total Memory currently allocated: {torch.mps.current_allocated_memory()}")
+        device = torch.device('mps')
+    else:
+        print("Device use: CPU")
+        device = torch.device('cpu')
     ### WRITE YOUR CODE HERE to do any other data processing
 
     # Dimensionality reduction (MS2)
@@ -58,18 +70,21 @@ def main(args):
     n_classes = get_n_classes(ytrain)
     if args.nn_type == "mlp":
 
-        model = MLP(input_size= 784 ,n_classes= 10) ### WRITE YOUR CODE HERE
-       
+        model = MLP(input_size= 784 ,n_classes= 10, device=device) ### WRITE YOUR CODE HERE
+        
     if args.nn_type == "cnn" :
         xtrain = xtrain.reshape(-1, 1, 28, 28)
 
-        model = CNN
+        model = CNN(device=device)
 
+    if args.nn_type == "transformer":
+        xtrain = xtrain.reshape(-1, 1, 28, 28)
+        xtest = xtest.reshape(-1, 1, 28, 28)
+        model = MyViT(xtrain.shape, device=device)
     
     summary(model)
-
     # Trainer object
-    method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size)
+    method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, device=device)
 
 
     ## 4. Train and evaluate the method
