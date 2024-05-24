@@ -291,6 +291,9 @@ class Trainer(object):
         for ep in range(self.epochs):
             self.train_one_epoch(dataloader,ep= ep)
 
+            print('\rEp {}/{}'.
+                  format(ep + 1, self.epochs, end=''))
+
             ### WRITE YOUR CODE HERE if you want to do add something else at each epoch
 
     def train_one_epoch(self, dataloader, ep):
@@ -324,10 +327,6 @@ class Trainer(object):
             self.optimizer.step()
 
             self.optimizer.zero_grad()
-
-            print('\rEp {}/{}, it {}/{}: loss train: {:.2f}'.
-                  format(ep + 1, self.epochs + 1,it , len(dataloader), loss,
-                          end=''))
 
     def predict_torch(self, dataloader):
         """

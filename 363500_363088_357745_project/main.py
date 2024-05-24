@@ -28,12 +28,17 @@ def main(args):
     #  normalize, add bias, etc.
 
     # Make a validation set
+
+
     if not args.test:
+        # Split the training data into training and validation sets
+        xtrain, xvalid = np.split(xtrain, [int(0.8 * xtrain.shape[0])])
+        ytrain, yvalid = np.split(ytrain, [int(0.8 * ytrain.shape[0])])
+        
     ### WRITE YOUR CODE HERE
-        print("Using PCA")
+        #print("Using PCA")
 
     ### WRITE YOUR CODE HERE to do any other data processing
-
 
     # Dimensionality reduction (MS2)
     if args.use_pca:
@@ -56,7 +61,8 @@ def main(args):
         model = MLP(input_size= 784 ,n_classes= 10) ### WRITE YOUR CODE HERE
        
     if args.nn_type == "cnn" :
-        
+        xtrain = xtrain.reshape(-1, 1, 28, 28)
+
         model = CNN
 
     
@@ -73,18 +79,23 @@ def main(args):
 
     # Predict on unseen data
     preds = method_obj.predict(xtest)
+    predsvalid = method_obj.predict(xvalid)
 
     ## Report results: performance on train and valid/test sets
     acc = accuracy_fn(preds_train, ytrain)
     macrof1 = macrof1_fn(preds_train, ytrain)
     print(f"\nTrain set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
 
+    acc = accuracy_fn(predsvalid, yvalid)
+    macrof1 = macrof1_fn(predsvalid, yvalid)
+    print(f"\nValidation set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
+
 
     ## As there are no test dataset labels, check your model accuracy on validation dataset.
     # You can check your model performance on test set by submitting your test set predictions on the AIcrowd competition.
-    acc = accuracy_fn(preds, xtest)
-    macrof1 = macrof1_fn(preds, xtest)
-    print(f"Validation set:  accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
+    ## acc = accuracy_fn(preds, xtest)
+    ## macrof1 = macrof1_fn(preds, xtest)
+    ## print(f"Validation set:  accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
 
 
     ### WRITE YOUR CODE HERE if you want to add other outputs, visualization, etc.
@@ -108,7 +119,7 @@ if __name__ == '__main__':
     parser.add_argument('--pca_d', type=int, default=100, help="the number of principal components")
 
 
-    parser.add_argument('--lr', type=float, default=1e-5, help="learning rate for methods with learning rate")
+    parser.add_argument('--lr', type=float, default=1e-2, help="learning rate for methods with learning rate")
     parser.add_argument('--max_iters', type=int, default=20, help="max iters for methods which are iterative")
     parser.add_argument('--test', action="store_true",
                         help="train on whole training data and evaluate on the test data, otherwise use a validation set")
