@@ -13,7 +13,7 @@ class MLP(nn.Module):
     It should not use any convolutional layers.
     """
 
-    def __init__(self, input_size, n_classes, layer1 = 512, layer2 = 280, layer3 = 120, layer4 = 84):
+    def __init__(self, input_size, n_classes, layer1 = 512, layer2 = 280, layer3 = 120, device=torch.device('cpu')):
         """
         Initialize the network.
         
@@ -31,6 +31,7 @@ class MLP(nn.Module):
         self.lin3 = nn.Linear(layer2, layer3);
         self.lin4 = nn.Linear(layer3, layer4);
         self.lin5 = nn.Linear(layer4, n_classes);
+        self.device = device
 
         
     def forward(self, x):
@@ -105,7 +106,7 @@ class CNN(nn.Module):
     It should use at least one convolutional layer.
     """
 
-    def __init__(self, input_channels, n_classes):
+    def __init__(self, input_channels, n_classes, device=torch.device('cpu')):
         """
         Initialize the network.
         
@@ -118,15 +119,10 @@ class CNN(nn.Module):
         """
         super(CNN, self).__init__()
         self.conv2d1 = nn.Conv2d(input_channels, 3, 3, stride=1, padding=1)
-        self.conv2d2 == nn.Conv2d(3, 12, 3, stride=1, padding=1)
-        self.conv2d3 == nn.Conv2d(12, 24, 3, stride=1, padding=1)
-        self.fc1 == nn.Linear
-
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        self.conv2d2 = nn.Conv2d(3,  12,  3, stride = 1, padding = 1)
+        self.fc1 = nn.Linear(12*7*7, 120)
+        self.fc2 = nn.Linear(120, n_classes)
+        self.device = device
 
     def forward(self, x):
         """
@@ -138,45 +134,40 @@ class CNN(nn.Module):
             preds (tensor): logits of predictions of shape (N, C)
                 Reminder: logits are value pre-softmax.
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
-        return preds
+        x = F.max_pool2d(F.relu(self.conv2d1(x)), 2)
+        x = F.max_pool2d(F.relu(self.conv2d2(x)), 2)
+        x = x.reshape((x.shape[0], -1))
+        x = F.relu(self.fc1(x))
+        return self.fc2(x)
 
 
 class MyViT(nn.Module):
     def get_positional_embeddings(sequence_length, d):
-        def f(i,d,index):
-            return i/(10000**((index - (index % 2))/d))
-        result = torch.ones(sequence_length, d)
-        for i in range(sequence_length):
-            indices = torch.arange(d, dtype=torch.float32)  
-            even_mask = indices % 2 == 0
-            odd_mask = ~even_mask 
-            result[i][even_mask] = torch.sin(f(i,d,indices[even_mask]))
-            result[i][odd_mask] = torch.cos(f(i,d,indices[odd_mask]))
-        return result
-    def patchify(images, n_patches):
+        positions = torch.arange(sequence_length, dtype=torch.float32).unsqueeze(1)
+        indices = torch.arange(d, dtype=torch.float32)
+        angle_rates = 1 / torch.pow(10000, (2 * (indices // 2)) / d)
+        angle_rads = positions * angle_rates
+
+        sines = torch.sin(angle_rads[:, 0::2])
+        cosines = torch.cos(angle_rads[:, 1::2])
+
+        pos_encoding = torch.zeros(sequence_length, d)
+        pos_encoding[:, 0::2] = sines
+        pos_encoding[:, 1::2] = cosines
+        return pos_encoding
+    def patchify(images, n_patches, device):
         n, c, h, w = images.shape
-
-        assert h == w 
-
-        patches = torch.zeros(n, n_patches ** 2, h * w * c // n_patches ** 2)
+        assert h == w, "Height and Width must be equal"
         patch_size = h // n_patches
-
-        for idx, image in enumerate(images):
-            for i in range(n_patches):
-                for j in range(n_patches):
-                    patch = image[:, i * patch_size: (i + 1) * patch_size, j * patch_size: (j + 1) * patch_size] 
-                    patches[idx, i * n_patches + j] = patch.flatten() 
-        return patches
+        patches = images.unfold(2, patch_size, patch_size).unfold(3, patch_size, patch_size)
+        patches = patches.permute(0, 2, 3, 1, 4, 5).contiguous()
+        patches = patches.view(n, n_patches * n_patches, c * patch_size * patch_size)
+        return patches.to(device)
     """
     A Transformer-based neural network
     """
 
-    def __init__(self, chw, n_patches, n_blocks, hidden_d, n_heads, out_d):
+    def __init__(self, chw, n_patches=7, n_blocks=24, hidden_d=96, n_heads=24, out_d=10, device=torch.device('cpu')):
         """
         Initialize the network.
         
@@ -188,23 +179,22 @@ class MyViT(nn.Module):
         self.n_heads = n_heads
         self.hidden_d = hidden_d
 
-        assert chw[1] % n_patches == 0 
-        assert chw[2] % n_patches == 0
-        self.patch_size =  (chw[1]/n_patches, chw[2]/n_patches)
 
-        self.input_d = int(chw[0] * self.patch_size[0] * self.patch_size[1])
+        assert chw[2] % n_patches == 0 
+        assert chw[3] % n_patches == 0
+        self.patch_size =  (chw[2]/n_patches, chw[3]/n_patches)
+
+        self.input_d = int(chw[1] * self.patch_size[1] * self.patch_size[1])
         self.linear_mapper = nn.Linear(self.input_d, self.hidden_d)
 
         self.class_token = nn.Parameter(torch.rand(1, self.hidden_d))
 
-        self.positional_embeddings = MyViT.get_positional_embeddings(n_patches ** 2 + 1, self.hidden_d)### WRITE YOUR CODE HERE
+        self.positional_embeddings = MyViT.get_positional_embeddings(n_patches ** 2 + 1, self.hidden_d).to(device=device)
 
         self.blocks = nn.ModuleList([MyViT.MyViTBlock(hidden_d, n_heads) for _ in range(n_blocks)])
 
-        self.mlp = nn.Sequential(
-            nn.Linear(self.hidden_d, out_d),
-            nn.Softmax(dim=-1)
-        )
+        self.mlp = MLP(input_size=hidden_d, n_classes=out_d, layer1=256, layer2=96, layer3=48)
+        self.device = device
 
     def forward(self, x):
         """
@@ -218,7 +208,7 @@ class MyViT(nn.Module):
         """
         n, _, _, _ = x.shape
 
-        patches = MyViT.patchify(x,self.n_patches)### WRITE YOUR CODE HERE
+        patches = MyViT.patchify(x,self.n_patches, self.device)
 
         tokens = self.linear_mapper(patches)
 
@@ -245,34 +235,33 @@ class MyViT(nn.Module):
             self.n_heads = n_heads
 
             assert d % n_heads == 0, f"Can't divide dimension {d} into {n_heads} heads"
-
             d_head = int(d / n_heads)
-            self.d_head = d_head
+            self.d_head = d_head 
 
-            self.q_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
-            self.k_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
-            self.v_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
+            self.qkv = nn.Linear(d, 3 * d)
             self.softmax = nn.Softmax(dim=-1)
+            self.fc_out = nn.Linear(d, d)
 
         def forward(self, sequences):
-            result = []
-            for sequence in sequences:
-                seq_result = []
-                for head in range(self.n_heads):
+            batch_size, seq_length, _ = sequences.shape
 
-                    q_mapping = self.q_mappings[head]
-                    k_mapping = self.k_mappings[head]
-                    v_mapping = self.v_mappings[head]
+            qkv = self.qkv(sequences) # (batch_size, seq_length, 3 * d)
+            qkv = qkv.view(batch_size, seq_length, 3, self.n_heads, self.d_head)
+            q, k, v = qkv[:, :, 0], qkv[:, :, 1], qkv[:, :, 2]  # each (batch_size, seq_length, n_heads, d_head)
 
-                    seq = sequence[:, head * self.d_head: (head + 1) * self.d_head]
+            q = q.permute(0, 2, 1, 3)
+            k = k.permute(0, 2, 1, 3)
+            v = v.permute(0, 2, 1, 3)
 
-                    q, k, v = q_mapping(seq), k_mapping(seq), v_mapping(seq)
+            scores = torch.matmul(q, k.transpose(-2, -1)) / (self.d_head ** 0.5)
+            attn = self.softmax(scores)
 
-                    attention_scores = torch.matmul(q, k.transpose(-2, -1)) / (self.d_head ** 0.5)
-                    attention = self.softmax(attention_scores)
-                    seq_result.append(attention @ v)
-                result.append(torch.hstack(seq_result))
-            return torch.cat([torch.unsqueeze(r, dim=0) for r in result])
+            out = torch.matmul(attn, v)
+            out = out.permute(0, 2, 1, 3).contiguous()
+            out = out.view(batch_size, seq_length, -1)
+
+            out = self.fc_out(out)
+            return out
     class MyViTBlock(nn.Module):
         def __init__(self, hidden_d, n_heads, mlp_ratio=4):
             super(MyViT.MyViTBlock, self).__init__()
@@ -299,7 +288,7 @@ class Trainer(object):
     It will also serve as an interface between numpy and pytorch.
     """
 
-    def __init__(self, model, lr, epochs, batch_size):
+    def __init__(self, model, lr, epochs, batch_size, device=torch.device('cpu')):
         """
         Initialize the trainer object for a given model.
 
@@ -309,12 +298,13 @@ class Trainer(object):
             epochs (int): number of epochs of training
             batch_size (int): number of data points in each batch
         """
+        self.device = device
         self.lr = lr
         self.epochs = epochs
-        self.model = model
+        self.model = model.to(self.device)
         self.batch_size = batch_size
 
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss().to(self.device)
         self.optimizer = torch.optim.SGD(params= model.parameters(), lr= lr)  ### WRITE YOUR CODE HERE
 
     def train_all(self, dataloader):
@@ -328,7 +318,7 @@ class Trainer(object):
             dataloader (DataLoader): dataloader for training data
         """
         for ep in range(self.epochs):
-            self.train_one_epoch(dataloader,ep= ep)
+            self.train_one_epoch(dataloader,ep=ep)
 
             print('\rEp {}/{}'.
                   format(ep + 1, self.epochs, end=''))
@@ -351,11 +341,10 @@ class Trainer(object):
         ###
         ##
         self.model.train()
-        for it, batch in enumerate(dataloader) :
-            x, y = batch
-
+        for it, (x, y) in enumerate(dataloader):
+            x = x.to(self.device)
+            y = y.to(self.device).long()
             # Ensure y is of type torch.int64
-            y = y.long()
 
             logits = self.model.forward(x)
 
@@ -366,6 +355,7 @@ class Trainer(object):
             self.optimizer.step()
 
             self.optimizer.zero_grad()
+            print(f"epoch {ep} , iteration {it}")
 
     def predict_torch(self, dataloader):
         """
@@ -390,16 +380,12 @@ class Trainer(object):
         ###
         ##
         self.model.eval()
+        pred_labels = torch.tensor([], dtype=torch.long, device=self.device)
         with torch.no_grad():
-            for it, batch in enumerate(dataloader):
-                x = batch[0] ## It is a list of ONE element
+            for batch in dataloader:
+                x = batch[0].to(self.device) ## It is a list of ONE element
                 logits = self.model.forward(x)
-
-                if it == 0:
-                    pred_labels = torch.argmax(logits, dim=1)
-                else:
-                    pred_labels = torch.cat((pred_labels, torch.argmax(logits, dim=1)))
-        
+                pred_labels = torch.cat((pred_labels, torch.argmax(logits,dim=1)))
         return pred_labels
     
     def fit(self, training_data, training_labels):

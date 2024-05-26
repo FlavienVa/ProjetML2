@@ -1,7 +1,10 @@
+from datetime import datetime
+
 import argparse
 
 import numpy as np
 from torchinfo import summary
+import torch
 
 from src.data import load_data
 from src.methods.pca import PCA
@@ -37,9 +40,23 @@ def main(args):
         
     ### WRITE YOUR CODE HERE
         #print("Using PCA")
-
-    ### WRITE YOUR CODE HERE to do any other data processing
-
+    if args.device == "cuda":
+        if (torch.cuda.is_available()):
+            print("Device use: CUDA")
+            device = torch.device('cuda')
+        else:
+            print("ERROR specified device unusable -> CPU")
+            device = torch.device('cpu')
+    elif args.device == "mps":
+        if (torch.backends.mps.is_available() and torch.backends.mps.is_built()):
+            print("Device use: MPS")
+            device = torch.device('mps')
+        else:
+            print("ERROR device specified unusable -> CPU")
+            device = torch.device('cpu')
+    else: 
+        print("Device use: CPU")
+        device = torch.device('cpu')
     # Dimensionality reduction (MS2)
     if args.use_pca:
         print("Using PCA")
@@ -58,18 +75,29 @@ def main(args):
     n_classes = get_n_classes(ytrain)
     if args.nn_type == "mlp":
 
-        model = MLP(input_size= 784 ,n_classes= 10) ### WRITE YOUR CODE HERE
-       
+        model = MLP(input_size= 784 ,n_classes= 10, device=device) ### WRITE YOUR CODE HERE
+        
     if args.nn_type == "cnn" :
         xtrain = xtrain.reshape(-1, 1, 28, 28)
+        xtest = xtest.reshape(-1, 1, 28, 28)
+        xvalid = xvalid.reshape(-1, 1, 28, 28)
 
-        model = CNN
+        model = CNN(input_channels=1 , n_classes=10)
 
+    if args.nn_type == "transformer":
+        xtrain = xtrain.reshape(-1, 1, 28, 28)
+        xtest = xtest.reshape(-1, 1, 28, 28)
+        xvalid = xvalid.reshape(-1, 1, 28, 28)
+        model = MyViT(xtrain.shape, device=device)
+
+
+    if args.load == True and args.path != None:
+        model.load_state_dict(torch.load(args.path)) 
     
-    summary(model)
 
+    summary(model)
     # Trainer object
-    method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size)
+    method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, device=device)
 
 
     ## 4. Train and evaluate the method
@@ -90,7 +118,9 @@ def main(args):
     macrof1 = macrof1_fn(predsvalid, yvalid)
     print(f"\nValidation set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
 
-
+    if args.save == True:
+        current_time = datetime.now().isoformat(timespec="minutes")
+        torch.save(model.state_dict(), f"trained_model/{model.__class__.__name__}-{macrof1:.5f}-{current_time}")
     ## As there are no test dataset labels, check your model accuracy on validation dataset.
     # You can check your model performance on test set by submitting your test set predictions on the AIcrowd competition.
     ## acc = accuracy_fn(preds, xtest)
@@ -123,8 +153,9 @@ if __name__ == '__main__':
     parser.add_argument('--max_iters', type=int, default=20, help="max iters for methods which are iterative")
     parser.add_argument('--test', action="store_true",
                         help="train on whole training data and evaluate on the test data, otherwise use a validation set")
-
-
+    parser.add_argument('--save', type=bool, default=False, help="save the trained model in the directoy trained_model")
+    parser.add_argument('--load', type=bool, default=False, help="load the trained model in the directoy trained_model")
+    parser.add_argument('--path', type=str, default=None, help="the name of the directoy we want to save our model")
     # "args" will keep in memory the arguments and their values,
     # which can be accessed as "args.data", for example.
     args = parser.parse_args()
