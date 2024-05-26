@@ -13,7 +13,7 @@ class MLP(nn.Module):
     It should not use any convolutional layers.
     """
 
-    def __init__(self, input_size, n_classes, layer1 = 512, layer2 = 280, layer3 = 120, device=torch.device('cpu')):
+    def __init__(self, input_size, n_classes, layer1 = 512, layer2 = 280, layer3 = 120, layer4 = 80, device=torch.device('cpu')):
         """
         Initialize the network.
         
