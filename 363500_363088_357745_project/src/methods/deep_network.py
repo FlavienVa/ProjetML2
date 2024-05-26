@@ -13,7 +13,7 @@ class MLP(nn.Module):
     It should not use any convolutional layers.
     """
 
-    def __init__(self, input_size, n_classes, layer1 = 512, layer2 = 280, layer3 = 120):
+    def __init__(self, input_size, n_classes, layer1 = 512, layer2 = 280, layer3 = 120, layer4 = 84):
         """
         Initialize the network.
         
@@ -29,7 +29,8 @@ class MLP(nn.Module):
         self.lin1 = nn.Linear(input_size, layer1);
         self.lin2 = nn.Linear(layer1, layer2);
         self.lin3 = nn.Linear(layer2, layer3);
-        self.lin4 = nn.Linear(layer3, n_classes);
+        self.lin4 = nn.Linear(layer3, layer4);
+        self.lin5 = nn.Linear(layer4, n_classes);
 
         
     def forward(self, x):
@@ -53,11 +54,46 @@ class MLP(nn.Module):
         #preds = x.view(x.size(0), -1)
 
 
-
+        #model1
+        # preds = F.relu(self.lin1(x))
+        # preds = F.sigmoid(self.lin2(preds))
+        # preds = F.relu(self.lin3(preds))
+        #model2
+        # preds = F.relu(self.lin1(x))
+        # preds = F.relu(self.lin2(preds))
+        # preds = F.relu(self.lin3(preds))
+        #model3
+        # preds = F.sigmoid(self.lin1(x))
+        # preds = F.sigmoid(self.lin2(preds))
+        # preds = F.sigmoid(self.lin3(preds))
+        #model4
+        # preds = F.sigmoid(self.lin1(x))
+        # preds = F.sigmoid(self.lin2(preds))
+        # preds = F.relu(self.lin3(preds))
+        #model5
+        # preds = F.sigmoid(self.lin1(x))
+        # preds = F.relu(self.lin2(preds))
+        # preds = F.relu(self.lin3(preds))
+        #model6
+        # preds = F.relu(self.lin1(x))
+        # preds = F.sigmoid(self.lin2(preds))
+        # preds = F.relu(self.lin3(preds))
+        # preds = F.sigmoid(self.lin4(preds))
+        #model7
+        # preds = F.relu(self.lin1(x))
+        # preds = F.relu(self.lin2(preds))
+        # preds = F.relu(self.lin3(preds))
+        # preds = F.relu(self.lin4(preds))
+        #model8
         preds = F.relu(self.lin1(x))
         preds = F.sigmoid(self.lin2(preds))
-        preds = F.relu(self.lin3(preds))
-        preds = self.lin4(preds)
+        preds = F.sigmoid(self.lin3(preds))
+        preds = F.relu(self.lin4(preds))
+
+
+
+
+        preds = self.lin5(preds)
 
         return preds
 
