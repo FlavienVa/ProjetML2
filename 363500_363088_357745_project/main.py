@@ -132,6 +132,8 @@ def main(args):
     macrof1 = macrof1_fn(predsvalid, yvalid)
     print(f"\nValidation set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
 
+    np.save("predictions", preds)
+
     if args.save == True:
         current_time = datetime.now().isoformat(timespec="minutes")
         torch.save(model.state_dict(), f"trained_model/{model.__class__.__name__}-{macrof1:.5f}-{current_time}")
