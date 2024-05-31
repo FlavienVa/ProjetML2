@@ -33,8 +33,7 @@ def main(args):
     std = np.std(xtrain)
     xtrain = normalize_fn(xtrain, means= mean, stds= std)
     xtest = normalize_fn(xtest, means= mean, stds=std)
-    # xtrain = append_bias_term(xtrain)
-    # xtest = append_bias_term(xtest)
+
 
 
     # Make a validation set
@@ -75,9 +74,11 @@ def main(args):
     if args.use_pca:
         print("Using PCA")
         pca_obj = PCA(d=args.pca_d)
+        pca_obj.find_principal_components(xtrain)
         ### WRITE YOUR CODE HERE: use the PCA object to reduce the dimensionality of the data
         xtrain = pca_obj.reduce_dimension(xtrain)
         xtest = pca_obj.reduce_dimension(xtest)
+        xvalid = pca_obj.reduce_dimension(xvalid)
 
 
     ## 3. Initialize the method you want to use.
@@ -88,8 +89,11 @@ def main(args):
     # Note: you might need to reshape the data depending on the network you use!
     n_classes = get_n_classes(ytrain)
     if args.nn_type == "mlp":
+        xtrain = append_bias_term(xtrain)
+        xtest = append_bias_term(xtest)
+        xvalid = append_bias_term(xvalid)
 
-        model = MLP(input_size= 784 ,n_classes= 10, device=device) ### WRITE YOUR CODE HERE
+        model = MLP(input_size= xtrain.shape[1] ,n_classes= 10, device=device) ### WRITE YOUR CODE HERE
         
     if args.nn_type == "cnn" :
         xtrain = xtrain.reshape(-1, 1, 28, 28)
@@ -132,8 +136,9 @@ def main(args):
     acc = accuracy_fn(predsvalid, yvalid)
     macrof1 = macrof1_fn(predsvalid, yvalid)
     print(f"\nValidation set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
-
-    np.save("predictions", preds)
+    print(preds.shape)
+    
+    #np.save("predictions", preds.numpy())
 
     if args.save == True:
         current_time = datetime.now().isoformat(timespec="minutes")
