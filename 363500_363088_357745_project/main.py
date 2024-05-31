@@ -40,9 +40,18 @@ def main(args):
     # Make a validation set
     if not args.test:
         # Split the training data into training and validation sets
-        xtrain, xvalid = np.split(xtrain, [int(0.8 * xtrain.shape[0])])
-        ytrain, yvalid = np.split(ytrain, [int(0.8 * ytrain.shape[0])])
+        random_index = np.arange(xtrain.shape[0])
+        np.random.shuffle(random_index)
+        xtrain, xvalid = xtrain[random_index[:int(0.8*xtrain.shape[0])]], xtrain[random_index[int(0.8*xtrain.shape[0]):]]
+        ytrain, yvalid = ytrain[random_index[:int(0.8*ytrain.shape[0])]], ytrain[random_index[int(0.8*ytrain.shape[0]):]]
         
+    mean = np.mean(xtrain, axis=0)
+    std = np.std(xtrain, axis=0)
+    xtrain = (xtrain - mean)/std
+    xtest = (xtrain - mean)/std
+    if not args.test:
+        xvalid = (xvalid - mean)/std
+    
     ### WRITE YOUR CODE HERE
         #print("Using PCA")
     if args.device == "cuda":

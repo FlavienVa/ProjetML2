@@ -167,7 +167,7 @@ class MyViT(nn.Module):
     A Transformer-based neural network
     """
 
-    def __init__(self, chw, n_patches=7, n_blocks=24, hidden_d=96, n_heads=24, out_d=10, device=torch.device('cpu')):
+    def __init__(self, chw, n_patches=7, n_blocks=8, hidden_d=8, n_heads=8, out_d=10, device=torch.device('cpu')):
         """
         Initialize the network.
         
@@ -193,7 +193,7 @@ class MyViT(nn.Module):
 
         self.blocks = nn.ModuleList([MyViT.MyViTBlock(hidden_d, n_heads) for _ in range(n_blocks)])
 
-        self.mlp = MLP(input_size=hidden_d, n_classes=out_d, layer1=256, layer2=96, layer3=48)
+        self.mlp = MLP(input_size=hidden_d, n_classes=out_d, layer1=128, layer2=32, layer3=16)
         self.device = device
 
     def forward(self, x):
@@ -237,6 +237,7 @@ class MyViT(nn.Module):
             assert d % n_heads == 0, f"Can't divide dimension {d} into {n_heads} heads"
             d_head = int(d / n_heads)
             self.d_head = d_head 
+            # self.multihead = nn.MultiheadAttention(d, num_heads=n_heads, dropout=0.004)
 
             self.qkv = nn.Linear(d, 3 * d)
             self.softmax = nn.Softmax(dim=-1)
@@ -254,7 +255,9 @@ class MyViT(nn.Module):
             v = v.permute(0, 2, 1, 3)
 
             scores = torch.matmul(q, k.transpose(-2, -1)) / (self.d_head ** 0.5)
+
             attn = self.softmax(scores)
+            # attn = self.multihead(q,k,v)
 
             out = torch.matmul(attn, v)
             out = out.permute(0, 2, 1, 3).contiguous()
@@ -319,10 +322,6 @@ class Trainer(object):
         """
         for ep in range(self.epochs):
             self.train_one_epoch(dataloader,ep=ep)
-
-            print('\rEp {}/{}'.
-                  format(ep + 1, self.epochs, end=''))
-
             ### WRITE YOUR CODE HERE if you want to do add something else at each epoch
 
     def train_one_epoch(self, dataloader, ep):
@@ -341,6 +340,7 @@ class Trainer(object):
         ###
         ##
         self.model.train()
+        max_iter = len(dataloader)
         for it, (x, y) in enumerate(dataloader):
             x = x.to(self.device)
             y = y.to(self.device).long()
@@ -355,8 +355,7 @@ class Trainer(object):
             self.optimizer.step()
 
             self.optimizer.zero_grad()
-            
-            # print(f"epoch {ep} , iteration {it}")
+            print(f"\rEpoch [{ep+1}/{self.epochs}] Iteration [{it+1}/{max_iter}]", end='')
 
     def predict_torch(self, dataloader):
         """
