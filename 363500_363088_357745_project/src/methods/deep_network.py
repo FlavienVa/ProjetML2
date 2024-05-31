@@ -355,7 +355,8 @@ class Trainer(object):
             self.optimizer.step()
 
             self.optimizer.zero_grad()
-            print(f"epoch {ep} , iteration {it}")
+            
+            # print(f"epoch {ep} , iteration {it}")
 
     def predict_torch(self, dataloader):
         """
