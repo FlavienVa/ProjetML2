@@ -180,11 +180,11 @@ class MyViT(nn.Module):
         self.hidden_d = hidden_d
 
 
-        assert chw[2] % n_patches == 0 
-        assert chw[3] % n_patches == 0
-        self.patch_size =  (chw[2]/n_patches, chw[3]/n_patches)
+        assert chw[1] % n_patches == 0 
+        assert chw[2] % n_patches == 0
+        self.patch_size =  (chw[1]/n_patches, chw[2]/n_patches)
 
-        self.input_d = int(chw[1] * self.patch_size[1] * self.patch_size[1])
+        self.input_d = int(chw[0] * self.patch_size[1] * self.patch_size[1])
         self.linear_mapper = nn.Linear(self.input_d, self.hidden_d)
 
         self.class_token = nn.Parameter(torch.rand(1, self.hidden_d))

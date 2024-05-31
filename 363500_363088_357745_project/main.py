@@ -102,7 +102,8 @@ def main(args):
         xtrain = xtrain.reshape(-1, 1, 28, 28)
         xtest = xtest.reshape(-1, 1, 28, 28)
         xvalid = xvalid.reshape(-1, 1, 28, 28)
-        model = MyViT(xtrain.shape, device=device)
+        print(xtrain.shape)
+        model = MyViT(xtrain.shape[1:], device=device)
 
 
     if args.load == True and args.path != None:
