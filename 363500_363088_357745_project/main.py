@@ -29,10 +29,15 @@ def main(args):
 
     ## 2. Then we must prepare it. This is were you can create a validation set,
     #  normalize, add bias, etc.
+    mean = np.mean(xtrain)
+    std = np.std(xtrain)
+    xtrain = normalize_fn(xtrain, means= mean, stds= std)
+    xtest = normalize_fn(xtest, means= mean, stds=std)
+    # xtrain = append_bias_term(xtrain)
+    # xtest = append_bias_term(xtest)
+
 
     # Make a validation set
-
-
     if not args.test:
         # Split the training data into training and validation sets
         random_index = np.arange(xtrain.shape[0])
