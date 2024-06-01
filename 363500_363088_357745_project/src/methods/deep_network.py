@@ -3,6 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import append_bias_term 
+
 ## MS2
 
 
@@ -167,7 +173,7 @@ class MyViT(nn.Module):
     A Transformer-based neural network
     """
 
-    def __init__(self, chw, n_patches=7, n_blocks=8, hidden_d=8, n_heads=8, out_d=10, device=torch.device('cpu')):
+    def __init__(self, chw, n_patches=7, n_blocks=8, hidden_d=32, n_heads=16, out_d=10, device=torch.device('cpu')):
         """
         Initialize the network.
         
@@ -193,7 +199,7 @@ class MyViT(nn.Module):
 
         self.blocks = nn.ModuleList([MyViT.MyViTBlock(hidden_d, n_heads) for _ in range(n_blocks)])
 
-        self.mlp = MLP(input_size=hidden_d, n_classes=out_d, layer1=128, layer2=32, layer3=16)
+        self.mlp = MLP(input_size=hidden_d, n_classes=out_d)
         self.device = device
 
     def forward(self, x):
@@ -221,8 +227,7 @@ class MyViT(nn.Module):
             out = block(out)
 
         out = out[:, 0]
-
-        out = self.mlp(out)
+        out = self.mlp(out).to(self.device)
 
         return out
     
