@@ -87,15 +87,15 @@ class MLP(nn.Module):
         # preds = F.relu(self.lin3(preds))
         # preds = F.sigmoid(self.lin4(preds))
         #model7
-        # preds = F.relu(self.lin1(x))
-        # preds = F.relu(self.lin2(preds))
-        # preds = F.relu(self.lin3(preds))
-        # preds = F.relu(self.lin4(preds))
-        #model8
         preds = F.relu(self.lin1(x))
-        preds = F.sigmoid(self.lin2(preds))
-        preds = F.sigmoid(self.lin3(preds))
+        preds = F.relu(self.lin2(preds))
+        preds = F.relu(self.lin3(preds))
         preds = F.relu(self.lin4(preds))
+        #model8
+        # preds = F.relu(self.lin1(x))
+        # preds = F.sigmoid(self.lin2(preds))
+        # preds = F.sigmoid(self.lin3(preds))
+        # preds = F.relu(self.lin4(preds))
 
 
 
