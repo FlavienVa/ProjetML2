@@ -18,18 +18,22 @@ def run_experiments(args):
     def train_and_evaluate(lr, max_iters):
         args.lr = lr
         args.max_iters = max_iters
-        acc, f1 = main(args)
-        return acc, f1
+        acc_test, f1_test, acc_valid, f1_valid = main(args, first=first)
+        return acc_test, f1_test, acc_valid, f1_valid
 
     lrs = [1e-3, 1e-2, 1e-1]
-    max_iters_list = [10, 20, 30]
-
+    max_iters_list = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+    first = True
+    last_iter = 0
     results = []
     for lr in lrs:
+        first = True
+        last_iter = 0
         for max_iters in max_iters_list:
-            acc, f1 = train_and_evaluate(lr, max_iters)
-            results.append((lr, max_iters, acc, f1))
-            print(f"lr: {lr}, max_iters: {max_iters} - Validation Accuracy: {acc:.3f}, Validation F1 Score: {f1:.3f}")
+            acc_test, f1_test, acc_valid, f1_valid = train_and_evaluate(lr, max_iters - last_iter)
+            last_iter = max_iters
+            first = False
+            results.append((lr, max_iters, acc_test, f1_test, acc_valid, f1_valid))
 
     plot_results(results, lrs, max_iters_list)
 
@@ -37,25 +41,29 @@ def plot_results(results, lrs, max_iters_list):
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
     for lr in lrs:
-        accs = [result[2] for result in results if result[0] == lr]
-        f1s = [result[3] for result in results if result[0] == lr]
-        axes[0].plot(max_iters_list, accs, label=f'lr={lr}')
-        axes[1].plot(max_iters_list, f1s, label=f'lr={lr}')
+        accs_test = [result[2] for result in results if result[0] == lr]
+        f1s_test = [result[3] for result in results if result[0] == lr]
+        accs_valid = [result[4] for result in results if result[0] == lr]
+        f1s_valid = [result[5] for result in results if result[0] == lr]
+        axes[0].plot(max_iters_list, accs_test, label=f'lr={lr}')
+        axes[0].plot(max_iters_list, f1s_test,marker='o', label=f'lr={lr}')
+        axes[1].plot(max_iters_list, accs_valid, label=f'lr={lr}')
+        axes[1].plot(max_iters_list, f1s_valid,marker='o', label=f'lr={lr}')
 
-    axes[0].set_xlabel('Max Iterations')
-    axes[0].set_ylabel('Accuracy')
-    axes[0].set_title('Validation Accuracy vs. Max Iterations')
+    axes[0].set_xlabel('Max Iterations in epoch')
+    axes[0].set_ylabel('Accuracy and F1 score in %')
+    axes[0].set_title('Test data set metrics in function of Max Iterations')
     axes[0].legend()
 
-    axes[1].set_xlabel('Max Iterations')
-    axes[1].set_ylabel('F1 Score')
-    axes[1].set_title('Validation F1 Score vs. Max Iterations')
+    axes[1].set_xlabel('Max Iterations in epoch')
+    axes[1].set_ylabel('Accuracy and F1 score in %')
+    axes[1].set_title('Valid data set metrics in function of Max Iterations')
     axes[1].legend()
-
+    fig.suptitle("MLP", fontsize=25)
     plt.tight_layout()
     plt.show()
 
-def main(args):
+def main(args, first=False):
     """
     The main function of the script. Do not hesitate to play with it
     and add your own code, visualization, prints, etc!
@@ -68,16 +76,12 @@ def main(args):
     xtrain, xtest, ytrain = load_data(args.data_path)
     xtrain = xtrain.reshape(xtrain.shape[0], -1)
     xtest = xtest.reshape(xtest.shape[0], -1)
-    print(xtrain.shape, xtest.shape, ytrain.shape)
+    # print(xtrain.shape, xtest.shape, ytrain.shape)
 
     ## 2. Then we must prepare it. This is were you can create a validation set,
     #  normalize, add bias, etc.
-    mean = np.mean(xtrain)
-    std = np.std(xtrain)
-    xtrain = normalize_fn(xtrain, means= mean, stds= std)
-    xtest = normalize_fn(xtest, means= mean, stds=std)
 
-    print(xtrain.shape, xtest.shape, ytrain.shape)
+    # print(xtrain.shape, xtest.shape, ytrain.shape)
 
 
     # Make a validation set
@@ -88,9 +92,11 @@ def main(args):
         xtrain, xvalid = xtrain[random_index[:int(0.8*xtrain.shape[0])]], xtrain[random_index[int(0.8*xtrain.shape[0]):]]
         ytrain, yvalid = ytrain[random_index[:int(0.8*ytrain.shape[0])]], ytrain[random_index[int(0.8*ytrain.shape[0]):]]
         
-    mean = np.mean(xtrain, axis=0)
-    std = np.std(xtrain, axis=0)
-    print(xtrain.shape, xtest.shape, ytrain.shape, xvalid.shape)
+    mean = np.mean(xtrain)
+    std = np.std(xtrain)
+    xtrain = normalize_fn(xtrain, means= mean, stds= std)
+    xtest = normalize_fn(xtest, means= mean, stds=std)
+    # print(xtrain.shape, xtest.shape, ytrain.shape, xvalid.shape)
     if not args.test:
         xvalid = normalize_fn(xvalid,means=mean,stds=std)
     
@@ -155,7 +161,9 @@ def main(args):
 
     if args.load == True and args.path != None:
         model.load_state_dict(torch.load(args.path)) 
-    
+
+    if args.experiment and not first:
+        model.load_state_dict(torch.load(args.path))
 
     summary(model)
     # Trainer object
@@ -166,29 +174,31 @@ def main(args):
 
     # Fit (:=train) the method on the training data
     preds_train = method_obj.fit(xtrain, ytrain)
-    print("preds_train" , np.shape(preds_train))
+    # print("preds_train" , np.shape(preds_train))
 
     # Predict on unseen data
     preds = method_obj.predict(xtest)
-    print("preds" , np.shape(preds))
+    # print("preds" , np.shape(preds))
     predsvalid = method_obj.predict(xvalid)
-    print("predsvalid", np.shape(predsvalid))
+    # print("predsvalid", np.shape(predsvalid))
 
     ## Report results: performance on train and valid/test sets
-    acc = accuracy_fn(preds_train, ytrain)
-    macrof1 = macrof1_fn(preds_train, ytrain)
-    print(f"\nTrain set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
+    acc_train = accuracy_fn(preds_train, ytrain)
+    macrof1_train = macrof1_fn(preds_train, ytrain) * 100
+    print(f"\nTrain set: accuracy = {acc_train:.3f}% - F1-score = {macrof1_train:.3f}%")
 
-    acc = accuracy_fn(predsvalid, yvalid)
-    macrof1 = macrof1_fn(predsvalid, yvalid)
-    print(f"\nValidation set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
-    print(preds.shape)
+    acc_valid = accuracy_fn(predsvalid, yvalid)
+    macrof1_valid = macrof1_fn(predsvalid, yvalid) * 100
+    print(f"\nValidation set: accuracy = {acc_valid:.3f}% - F1-score = {macrof1_valid:.3f}%")
     
     np.save("predictions", preds)
 
+    if args.experiment:
+        torch.save(model.state_dict(), args.path)
+        
     if args.save == True:
         current_time = datetime.now().isoformat(timespec="minutes")
-        torch.save(model.state_dict(), f"trained_model/{model.__class__.__name__}-{macrof1:.5f}-{current_time}")
+        torch.save(model.state_dict(), f"trained_model/{model.__class__.__name__}-{macrof1_valid:.5f}-{current_time}")
     ## As there are no test dataset labels, check your model accuracy on validation dataset.
     # You can check your model performance on test set by submitting your test set predictions on the AIcrowd competition.
     ## acc = accuracy_fn(preds, xtest)
@@ -197,7 +207,7 @@ def main(args):
 
 
     ### WRITE YOUR CODE HERE if you want to add other outputs, visualization, etc.
-    return acc, macrof1
+    return acc_train, macrof1_train, acc_valid, macrof1_valid
 
 
 
