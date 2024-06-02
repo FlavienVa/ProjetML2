@@ -124,8 +124,8 @@ class CNN(nn.Module):
             n_classes (int): number of classes to predict
         """
         super(CNN, self).__init__()
-        self.conv2d1 = nn.Conv2d(input_channels, 3, 3, stride=1, padding=1)
-        self.conv2d2 = nn.Conv2d(3,  12,  3, stride = 1, padding = 1)
+        self.conv2d1 = nn.Conv2d(input_channels, 5, 3, stride=1, padding=1)
+        self.conv2d2 = nn.Conv2d(5,  12,  3, stride = 1, padding = 1)
         self.fc1 = nn.Linear(12*7*7, 120)
         self.fc2 = nn.Linear(120, n_classes)
         self.device = device

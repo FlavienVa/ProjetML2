@@ -15,11 +15,33 @@ from src.utils import normalize_fn, append_bias_term, accuracy_fn, macrof1_fn, g
 import os
 
 def run_experiments(args):
-    def train_and_evaluate(lr, max_iters):
+    def train_and_evaluate(lr, max_iters, xtrain, ytrain,xvalid,yvalid,xtest):
         args.lr = lr
         args.max_iters = max_iters
-        acc_test, f1_test, acc_valid, f1_valid = main(args, first=first)
+        acc_test, f1_test, acc_valid, f1_valid = main(args, first=first, xtest=xtest, xtrain=xtrain,ytrain=ytrain, xvalid=xvalid,yvalid=yvalid)
         return acc_test, f1_test, acc_valid, f1_valid
+
+    xtrain, xtest, ytrain = load_data(args.data_path)
+    xtrain = xtrain.reshape(xtrain.shape[0], -1)
+    xtest = xtest.reshape(xtest.shape[0], -1)
+    random_index = np.arange(xtrain.shape[0])
+    np.random.shuffle(random_index)
+    xtrain, xvalid = xtrain[random_index[:int(0.8*xtrain.shape[0])]], xtrain[random_index[int(0.8*xtrain.shape[0]):]]
+    ytrain, yvalid = ytrain[random_index[:int(0.8*ytrain.shape[0])]], ytrain[random_index[int(0.8*ytrain.shape[0]):]]
+        
+    mean = np.mean(xtrain)
+    std = np.std(xtrain)
+    xtrain = normalize_fn(xtrain, means= mean, stds= std)
+    xtest = normalize_fn(xtest, means= mean, stds=std)
+    xvalid = normalize_fn(xvalid,means=mean,stds=std)
+
+    if args.use_pca:
+        print("Using PCA")
+        pca_obj = PCA(d=args.pca_d)
+        pca_obj.find_principal_components(xtrain)
+        xtrain = pca_obj.reduce_dimension(xtrain)
+        xtest = pca_obj.reduce_dimension(xtest)
+        xvalid = pca_obj.reduce_dimension(xvalid)
 
     lrs = [1e-3, 1e-2, 1e-1]
     max_iters_list = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
@@ -30,7 +52,7 @@ def run_experiments(args):
         first = True
         last_iter = 0
         for max_iters in max_iters_list:
-            acc_test, f1_test, acc_valid, f1_valid = train_and_evaluate(lr, max_iters - last_iter)
+            acc_test, f1_test, acc_valid, f1_valid = train_and_evaluate(lr, max_iters - last_iter, xtrain, ytrain,xvalid,yvalid,xtest)
             last_iter = max_iters
             first = False
             results.append((lr, max_iters, acc_test, f1_test, acc_valid, f1_valid))
@@ -45,10 +67,10 @@ def plot_results(results, lrs, max_iters_list):
         f1s_test = [result[3] for result in results if result[0] == lr]
         accs_valid = [result[4] for result in results if result[0] == lr]
         f1s_valid = [result[5] for result in results if result[0] == lr]
-        axes[0].plot(max_iters_list, accs_test, label=f'lr={lr}')
-        axes[0].plot(max_iters_list, f1s_test,marker='o', label=f'lr={lr}')
-        axes[1].plot(max_iters_list, accs_valid, label=f'lr={lr}')
-        axes[1].plot(max_iters_list, f1s_valid,marker='o', label=f'lr={lr}')
+        axes[0].plot(max_iters_list, accs_test, label=f'lr={lr} accuracy')
+        axes[0].plot(max_iters_list, f1s_test,marker='o', label=f'lr={lr} f1 score')
+        axes[1].plot(max_iters_list, accs_valid, label=f'lr={lr} accuracy')
+        axes[1].plot(max_iters_list, f1s_valid,marker='o', label=f'lr={lr} f1 score')
 
     axes[0].set_xlabel('Max Iterations in epoch')
     axes[0].set_ylabel('Accuracy and F1 score in %')
@@ -59,11 +81,11 @@ def plot_results(results, lrs, max_iters_list):
     axes[1].set_ylabel('Accuracy and F1 score in %')
     axes[1].set_title('Valid data set metrics in function of Max Iterations')
     axes[1].legend()
-    fig.suptitle("MLP", fontsize=25)
+    fig.suptitle("MLP with PCA", fontsize=25)
     plt.tight_layout()
     plt.show()
 
-def main(args, first=False):
+def main(args, first=False, xtrain=None, xvalid=None, xtest=None, ytrain=None, yvalid=None):
     """
     The main function of the script. Do not hesitate to play with it
     and add your own code, visualization, prints, etc!
@@ -72,34 +94,35 @@ def main(args, first=False):
         args (Namespace): arguments that were parsed from the command line (see at the end 
                           of this file). Their value can be accessed as "args.argument".
     """
-    ## 1. First, we load our data and flatten the images into vectors
-    xtrain, xtest, ytrain = load_data(args.data_path)
-    xtrain = xtrain.reshape(xtrain.shape[0], -1)
-    xtest = xtest.reshape(xtest.shape[0], -1)
-    # print(xtrain.shape, xtest.shape, ytrain.shape)
+    if not args.experiment:
+        ## 1. First, we load our data and flatten the images into vectors
+        xtrain, xtest, ytrain = load_data(args.data_path)
+        xtrain = xtrain.reshape(xtrain.shape[0], -1)
+        xtest = xtest.reshape(xtest.shape[0], -1)
+        # print(xtrain.shape, xtest.shape, ytrain.shape)
 
-    ## 2. Then we must prepare it. This is were you can create a validation set,
-    #  normalize, add bias, etc.
+        ## 2. Then we must prepare it. This is were you can create a validation set,
+        #  normalize, add bias, etc.
 
-    # print(xtrain.shape, xtest.shape, ytrain.shape)
+        # print(xtrain.shape, xtest.shape, ytrain.shape)
 
 
-    # Make a validation set
-    if not args.test:
-        # Split the training data into training and validation sets
-        random_index = np.arange(xtrain.shape[0])
-        np.random.shuffle(random_index)
-        xtrain, xvalid = xtrain[random_index[:int(0.8*xtrain.shape[0])]], xtrain[random_index[int(0.8*xtrain.shape[0]):]]
-        ytrain, yvalid = ytrain[random_index[:int(0.8*ytrain.shape[0])]], ytrain[random_index[int(0.8*ytrain.shape[0]):]]
+        # Make a validation set
+        if not args.test:
+            # Split the training data into training and validation sets
+            random_index = np.arange(xtrain.shape[0])
+            np.random.shuffle(random_index)
+            xtrain, xvalid = xtrain[random_index[:int(0.8*xtrain.shape[0])]], xtrain[random_index[int(0.8*xtrain.shape[0]):]]
+            ytrain, yvalid = ytrain[random_index[:int(0.8*ytrain.shape[0])]], ytrain[random_index[int(0.8*ytrain.shape[0]):]]
+            
+        mean = np.mean(xtrain)
+        std = np.std(xtrain)
+        xtrain = normalize_fn(xtrain, means= mean, stds= std)
+        xtest = normalize_fn(xtest, means= mean, stds=std)
+        # print(xtrain.shape, xtest.shape, ytrain.shape, xvalid.shape)
+        if not args.test:
+            xvalid = normalize_fn(xvalid,means=mean,stds=std)
         
-    mean = np.mean(xtrain)
-    std = np.std(xtrain)
-    xtrain = normalize_fn(xtrain, means= mean, stds= std)
-    xtest = normalize_fn(xtest, means= mean, stds=std)
-    # print(xtrain.shape, xtest.shape, ytrain.shape, xvalid.shape)
-    if not args.test:
-        xvalid = normalize_fn(xvalid,means=mean,stds=std)
-    
     ### WRITE YOUR CODE HERE
         #print("Using PCA")
     if args.device == "cuda":
@@ -120,7 +143,7 @@ def main(args, first=False):
         print("Device use: CPU")
         device = torch.device('cpu')
     # Dimensionality reduction (MS2)
-    if args.use_pca:
+    if args.use_pca and not args.experiment:
         print("Using PCA")
         pca_obj = PCA(d=args.pca_d)
         pca_obj.find_principal_components(xtrain)
